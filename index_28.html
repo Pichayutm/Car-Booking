@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>ระบบลง–คืนรถบริษัท</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1220;
+    --panel:#131C2E;
+    --panel-2:#0F1830;
+    --border:#24304A;
+    --text:#E7ECF3;
+    --muted:#7C8AA0;
+    --available:#33D690;
+    --inuse:#FF5C5C;
+    --warn:#FFB020;
+    --accent:#4C8DFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans Thai', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; letter-spacing:0.02em; }
+
+  header{
+    padding:18px 20px 10px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    flex-wrap:wrap;
+  }
+  header h1{
+    font-size:17px; font-weight:600; margin:0; letter-spacing:0.01em;
+  }
+  header h1 .dim{ color:var(--muted); font-weight:400; }
+
+  nav{
+    display:flex; gap:6px; padding:12px 20px 0; border-bottom:1px solid var(--border);
+  }
+  nav button{
+    background:none; border:none; color:var(--muted);
+    font-family:inherit; font-size:14px; padding:10px 16px;
+    cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  nav button.active{ color:var(--text); border-bottom-color:var(--accent); }
+
+  main{ padding:18px 20px 60px; max-width:760px; margin:0 auto; }
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:16px; margin-bottom:14px;
+  }
+  .panel h2{ font-size:13px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin:0 0 12px; font-weight:600; }
+
+  .board-row{
+    display:grid; grid-template-columns:14px 1fr auto; gap:12px;
+    align-items:center; padding:12px 4px; border-bottom:1px solid var(--border);
+  }
+  .board-row:last-child{ border-bottom:none; }
+  .dot{ width:9px; height:9px; border-radius:50%; margin-top:4px; }
+  .dot.available{ background:var(--available); box-shadow:0 0 6px var(--available); }
+  .dot.inuse{ background:var(--inuse); box-shadow:0 0 6px var(--inuse); animation:pulse 1.8s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  .plate{ font-size:15px; font-weight:600; }
+  .meta{ font-size:12px; color:var(--muted); margin-top:4px; line-height:1.6; }
+  .meta b{ color:var(--text); font-weight:500; }
+  .status-tag{ font-size:12px; text-align:right; white-space:nowrap; }
+  .status-tag.available{ color:var(--available); }
+  .status-tag.inuse{ color:var(--inuse); }
+
+  label{ display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; }
+  label:first-child{ margin-top:0; }
+  input, select, textarea{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:7px; padding:11px 12px; font-family:inherit; font-size:14px;
+  }
+  textarea{ resize:vertical; min-height:60px; }
+  input[type="file"]{ padding:9px 10px; }
+
+  .radio-group{ display:flex; gap:10px; }
+  .radio-option{
+    flex:1; display:flex; align-items:center; gap:8px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:7px;
+    padding:11px 12px; cursor:pointer; font-size:14px;
+  }
+  .radio-option input{ width:auto; margin:0; accent-color:var(--accent); }
+  .radio-option.checked{ border-color:var(--accent); }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--accent); color:#fff; border:none; border-radius:7px;
+    padding:12px 16px; font-family:inherit; font-size:14px; font-weight:500;
+    cursor:pointer; width:100%; margin-top:6px;
+  }
+  .btn.secondary{ background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .photo-preview{
+    margin-top:10px; border-radius:8px; overflow:hidden; border:1px solid var(--border);
+    max-height:220px; display:none;
+  }
+  .photo-preview img{ width:100%; display:block; }
+
+  .msg{ font-size:13px; padding:10px 12px; border-radius:7px; margin-top:12px; display:none; }
+  .msg.ok{ background:rgba(51,214,144,0.12); color:var(--available); display:block; }
+  .msg.err{ background:rgba(255,92,92,0.12); color:var(--inuse); display:block; }
+
+  .empty{ color:var(--muted); font-size:13px; text-align:center; padding:20px 0; }
+  .loading{ color:var(--muted); font-size:13px; text-align:center; padding:20px 0; }
+
+  .distance-result{ text-align:center; padding:18px 0 6px; }
+  .distance-result .num{ font-size:36px; font-weight:600; font-family:'IBM Plex Mono', monospace; }
+  .distance-result .unit{ color:var(--muted); font-size:13px; margin-top:4px; }
+
+  .cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .cal-title{ font-size:14px; font-weight:600; }
+  .cal-nav{ width:36px; height:36px; padding:0; margin:0; font-size:16px; flex:none; }
+  .cal-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
+  .cal-weekdays div{ text-align:center; font-size:11px; color:var(--muted); padding:4px 0; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-day{
+    min-height:64px; background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    padding:4px; cursor:pointer; overflow:hidden;
+  }
+  .cal-day.other-month{ opacity:0.35; }
+  .cal-day.today{ border-color:var(--accent); }
+  .cal-day.selected{ border-color:var(--accent); background:rgba(76,141,255,0.12); }
+  .cal-day .cal-daynum{ font-size:11px; color:var(--muted); font-family:'IBM Plex Mono', monospace; }
+  .cal-day .cal-chip{
+    font-size:9px; background:rgba(51,214,144,0.15); color:var(--available);
+    border-radius:3px; padding:1px 4px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cal-day .cal-more{ font-size:9px; color:var(--muted); margin-top:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ระบบลง–คืนรถบริษัท <span class="dim">/ Fleet Log</span></h1>
+</header>
+
+<nav>
+  <button data-tab="dashboard" class="active">ภาพรวมรถ</button>
+  <button data-tab="checkout">ลงใช้รถ</button>
+  <button data-tab="checkin">คืนรถ</button>
+  <button data-tab="booking">จองล่วงหน้า</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard">
+    <div class="panel">
+      <h2 id="dash-summary">กำลังโหลด...</h2>
+      <div id="dash-list"><div class="loading">กำลังโหลดข้อมูลรถ...</div></div>
+    </div>
+  </section>
+
+  <!-- CHECKOUT -->
+  <section id="tab-checkout" style="display:none">
+    <div class="panel">
+      <h2>ผู้ใช้และรถ</h2>
+      <label>ชื่อ - นามสกุล ผู้ใช้รถ</label>
+      <select id="co-user"></select>
+
+      <label>รถที่ว่าง</label>
+      <select id="co-vehicle"></select>
+    </div>
+
+    <div class="panel">
+      <h2>รายละเอียดการเดินทาง</h2>
+      <label>โปรเจค (JOB)</label>
+      <select id="co-project"></select>
+
+      <label>ภารกิจหรือเหตุผลใช้รถ</label>
+      <select id="co-purpose"></select>
+
+      <label>สถานที่</label>
+      <div class="radio-group" id="co-location-group">
+        <label class="radio-option"><input type="radio" name="co-location" value="กรุงเทพมหานคร" checked /> กรุงเทพมหานคร</label>
+        <label class="radio-option"><input type="radio" name="co-location" value="ต่างจังหวัด" /> ต่างจังหวัด</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>ถ่ายรูปเลขไมล์ตอนออก</h2>
+      <input id="co-photo" type="file" accept="image/*" capture="environment" />
+      <div class="photo-preview" id="co-preview"><img id="co-preview-img" /></div>
+      <button class="btn secondary" id="co-ocr-btn" style="margin-top:10px;" disabled>อ่านค่าไมล์จากรูปอัตโนมัติ</button>
+      <label>เลขไมล์ (ตรวจสอบ/แก้ไขได้)</label>
+      <input id="co-mileage" type="number" inputmode="numeric" placeholder="เช่น 45210" />
+      <div class="msg" id="co-msg"></div>
+      <button class="btn" id="co-submit">บันทึกลงใช้รถ</button>
+    </div>
+  </section>
+
+  <!-- CHECKIN -->
+  <section id="tab-checkin" style="display:none">
+    <div class="panel">
+      <h2>เลือกรถที่จะคืน</h2>
+      <select id="ci-vehicle"></select>
+    </div>
+
+    <div class="panel">
+      <h2>ถ่ายรูปเลขไมล์ตอนคืน</h2>
+      <input id="ci-photo" type="file" accept="image/*" capture="environment" />
+      <div class="photo-preview" id="ci-preview"><img id="ci-preview-img" /></div>
+      <button class="btn secondary" id="ci-ocr-btn" style="margin-top:10px;" disabled>อ่านค่าไมล์จากรูปอัตโนมัติ</button>
+      <label>เลขไมล์ตอนคืน (ตรวจสอบ/แก้ไขได้)</label>
+      <input id="ci-mileage" type="number" inputmode="numeric" placeholder="เช่น 45340" />
+      <div class="msg" id="ci-msg"></div>
+      <button class="btn" id="ci-submit">บันทึกคืนรถ</button>
+      <div class="distance-result" id="ci-result" style="display:none">
+        <div class="num" id="ci-distance">—</div>
+        <div class="unit">กิโลเมตรที่ใช้ไป</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOOKING -->
+  <section id="tab-booking" style="display:none">
+    <div class="panel">
+      <h2>จองรถล่วงหน้า</h2>
+      <label>ผู้จอง</label>
+      <select id="bk-user"></select>
+
+      <label>เลือกรถ</label>
+      <select id="bk-vehicle"></select>
+
+      <label>โปรเจค</label>
+      <select id="bk-project"></select>
+
+      <div class="row2">
+        <div>
+          <label>เริ่มใช้</label>
+          <input id="bk-start" type="datetime-local" />
+        </div>
+        <div>
+          <label>ถึง</label>
+          <input id="bk-end" type="datetime-local" />
+        </div>
+      </div>
+
+      <label>หมายเหตุ (ถ้ามี)</label>
+      <input id="bk-note" type="text" placeholder="เช่น ไปส่งของที่ไซต์ปทุมธานี" />
+
+      <div class="msg" id="bk-msg"></div>
+      <button class="btn" id="bk-submit">บันทึกการจอง</button>
+    </div>
+
+    <div class="panel">
+      <div class="cal-header">
+        <button class="btn secondary cal-nav" id="bk-cal-prev">‹</button>
+        <div class="cal-title" id="bk-cal-title">—</div>
+        <button class="btn secondary cal-nav" id="bk-cal-next">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>
+      </div>
+      <div class="cal-grid" id="bk-cal-grid"></div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h2 id="bk-summary" style="margin:0;">คิวจองที่กำลังจะถึง</h2>
+        <button class="btn secondary" id="bk-clear-filter" style="display:none; width:auto; padding:6px 10px; font-size:12px; margin:0;">แสดงทั้งหมด</button>
+      </div>
+      <div id="bk-list"><div class="loading">กำลังโหลด...</div></div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ============================================================
+// ตั้งค่า: วาง URL ของ Apps Script Web App ที่ deploy แล้วตรงนี้
+// ============================================================
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+let vehicles = [];
+let projects = [];
+let users = [];
+let purposes = [];
+let bookings = [];
+
+// ---------- Tabs ----------
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('main > section').forEach(s => s.style.display = 'none');
+    document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+  });
+});
+
+// ---------- Location radio highlight ----------
+document.querySelectorAll('#co-location-group input').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('#co-location-group .radio-option').forEach(o => o.classList.remove('checked'));
+    r.closest('.radio-option').classList.add('checked');
+  });
+});
+document.querySelector('#co-location-group .radio-option').classList.add('checked');
+
+// ---------- Load data ----------
+async function loadData() {
+  try {
+    const res = await fetch(API_URL + '?action=getData');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    vehicles = json.vehicles;
+    projects = json.projects;
+    users = json.users;
+    purposes = json.purposes;
+    bookings = json.bookings || [];
+    renderDashboard();
+    renderCheckoutOptions();
+    renderCheckinOptions();
+    renderBookingOptions();
+    renderCalendarGrid();
+    renderBookingList();
+  } catch (err) {
+    document.getElementById('dash-list').innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ: ' + err.message + '</div>';
+  }
+}
+
+function renderDashboard() {
+  const available = vehicles.filter(v => v['สถานะ'] === 'ว่าง').length;
+  document.getElementById('dash-summary').textContent =
+    `รถทั้งหมด ${vehicles.length} คัน · ว่าง ${available} คัน · ไม่ว่าง ${vehicles.length - available} คัน`;
+
+  const list = document.getElementById('dash-list');
+  if (vehicles.length === 0) {
+    list.innerHTML = '<div class="empty">ยังไม่มีข้อมูลรถในระบบ</div>';
+    return;
+  }
+  list.innerHTML = vehicles.map(v => {
+    const inUse = v['สถานะ'] === 'ไม่ว่าง';
+    let metaLine = '';
+    if (inUse) {
+      metaLine = `<div class="meta">
+        ผู้ใช้: <b>${v['ผู้ใช้ปัจจุบัน'] || '-'}</b> · โปรเจค: <b>${v['โปรเจคปัจจุบัน'] || '-'}</b> · ${v['สถานที่ปัจจุบัน'] || '-'}
+      </div>`;
+    }
+    return `
+      <div class="board-row">
+        <div class="dot ${inUse ? 'inuse' : 'available'}"></div>
+        <div>
+          <div class="plate mono">${v['ทะเบียนรถ']}</div>
+          ${metaLine}
+        </div>
+        <div class="status-tag ${inUse ? 'inuse' : 'available'}">${inUse ? 'ไม่ว่าง' : 'ว่าง'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatDateTime(d) {
+  return d.toLocaleString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function renderCheckoutOptions() {
+  const vsel = document.getElementById('co-vehicle');
+  const avail = vehicles.filter(v => v['สถานะ'] === 'ว่าง');
+  vsel.innerHTML = avail.length
+    ? avail.map(v => `<option value="${v['VehicleID']}">${v['ทะเบียนรถ']}</option>`).join('')
+    : `<option value="">ไม่มีรถว่างในขณะนี้</option>`;
+
+  const usel = document.getElementById('co-user');
+  usel.innerHTML = users.map(u => `<option value="${u['ชื่อ-นามสกุล']}">${u['ชื่อ-นามสกุล']}</option>`).join('');
+
+  const psel = document.getElementById('co-project');
+  psel.innerHTML = projects.map(p => `<option value="${p['ProjectID']}" data-name="${p['ชื่อโปรเจค']}">${p['ชื่อโปรเจค']}</option>`).join('');
+
+  const pusel = document.getElementById('co-purpose');
+  pusel.innerHTML = purposes.map(p => `<option value="${p['ข้อความ']}">${p['ข้อความ']}</option>`).join('');
+}
+
+function renderCheckinOptions() {
+  const sel = document.getElementById('ci-vehicle');
+  const inUse = vehicles.filter(v => v['สถานะ'] === 'ไม่ว่าง');
+  sel.innerHTML = inUse.length
+    ? inUse.map(v => `<option value="${v['VehicleID']}">${v['ทะเบียนรถ']} — ${v['ผู้ใช้ปัจจุบัน'] || ''}</option>`).join('')
+    : `<option value="">ไม่มีรถที่ต้องคืนในขณะนี้</option>`;
+}
+
+let calendarViewDate = new Date();
+let selectedDay = null; // Date or null
+
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function endOfDay(d) { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; }
+function sameDay(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+function renderCalendarGrid() {
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+  const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  document.getElementById('bk-cal-title').textContent = `${monthNames[month]} ${year + 543}`;
+
+  const firstOfMonth = new Date(year, month, 1);
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(gridStart.getDate() - firstOfMonth.getDay());
+
+  const today = new Date();
+  const grid = document.getElementById('bk-cal-grid');
+  let html = '';
+  for (let i = 0; i < 42; i++) {
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate() + i);
+    const inMonth = cellDate.getMonth() === month;
+    const dayBookings = bookings.filter(b =>
+      new Date(b['วันเวลาเริ่ม']) <= endOfDay(cellDate) && new Date(b['วันเวลาสิ้นสุด']) >= startOfDay(cellDate)
+    );
+    const classes = ['cal-day'];
+    if (!inMonth) classes.push('other-month');
+    if (sameDay(cellDate, today)) classes.push('today');
+    if (selectedDay && sameDay(cellDate, selectedDay)) classes.push('selected');
+
+    const chips = dayBookings.slice(0, 2).map(b => `<div class="cal-chip">${b['ทะเบียนรถ']}</div>`).join('');
+    const more = dayBookings.length > 2 ? `<div class="cal-more">+${dayBookings.length - 2} เพิ่มเติม</div>` : '';
+
+    html += `<div class="${classes.join(' ')}" onclick="selectCalendarDay('${cellDate.toISOString()}')">
+      <div class="cal-daynum">${cellDate.getDate()}</div>
+      ${chips}${more}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function selectCalendarDay(isoDate) {
+  const d = new Date(isoDate);
+  if (selectedDay && sameDay(d, selectedDay)) {
+    selectedDay = null; // กดซ้ำวันเดิม = ยกเลิกการเลือก
+  } else {
+    selectedDay = d;
+  }
+  renderCalendarGrid();
+  renderBookingList();
+}
+
+document.getElementById('bk-cal-prev').addEventListener('click', () => {
+  calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
+  renderCalendarGrid();
+});
+document.getElementById('bk-cal-next').addEventListener('click', () => {
+  calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
+  renderCalendarGrid();
+});
+document.getElementById('bk-clear-filter').addEventListener('click', () => {
+  selectedDay = null;
+  renderCalendarGrid();
+  renderBookingList();
+});
+
+function renderBookingOptions() {
+  const usel = document.getElementById('bk-user');
+  usel.innerHTML = users.map(u => `<option value="${u['ชื่อ-นามสกุล']}">${u['ชื่อ-นามสกุล']}</option>`).join('');
+
+  const vsel = document.getElementById('bk-vehicle');
+  vsel.innerHTML = vehicles.map(v => `<option value="${v['VehicleID']}" data-plate="${v['ทะเบียนรถ']}">${v['ทะเบียนรถ']}</option>`).join('');
+
+  const psel = document.getElementById('bk-project');
+  psel.innerHTML = projects.map(p => `<option value="${p['ProjectID']}" data-name="${p['ชื่อโปรเจค']}">${p['ชื่อโปรเจค']}</option>`).join('');
+}
+
+function renderBookingList() {
+  const clearBtn = document.getElementById('bk-clear-filter');
+  let shown;
+  if (selectedDay) {
+    shown = bookings.filter(b => new Date(b['วันเวลาเริ่ม']) <= endOfDay(selectedDay) && new Date(b['วันเวลาสิ้นสุด']) >= startOfDay(selectedDay));
+    const d = selectedDay;
+    document.getElementById('bk-summary').textContent = `คิวจองวันที่ ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} (${shown.length})`;
+    clearBtn.style.display = 'inline-flex';
+  } else {
+    shown = bookings.filter(b => new Date(b['วันเวลาสิ้นสุด']) >= new Date());
+    document.getElementById('bk-summary').textContent = `คิวจองที่กำลังจะถึง (${shown.length})`;
+    clearBtn.style.display = 'none';
+  }
+
+  const list = document.getElementById('bk-list');
+  if (shown.length === 0) {
+    list.innerHTML = '<div class="empty">ไม่มีการจองในช่วงนี้</div>';
+    return;
+  }
+  list.innerHTML = shown.map(b => `
+    <div class="board-row">
+      <div class="dot available"></div>
+      <div>
+        <div class="plate mono">${b['ทะเบียนรถ']}</div>
+        <div class="meta">
+          ผู้จอง: <b>${b['ผู้จอง']}</b> · โปรเจค: <b>${b['ชื่อโปรเจค'] || '-'}</b>
+          <br>${formatDateTime(new Date(b['วันเวลาเริ่ม']))} — ${formatDateTime(new Date(b['วันเวลาสิ้นสุด']))}
+          ${b['หมายเหตุ'] ? `<br>หมายเหตุ: ${b['หมายเหตุ']}` : ''}
+        </div>
+      </div>
+      <button class="btn secondary" style="width:auto; padding:6px 10px; font-size:12px; margin:0;" onclick="cancelBooking('${b['EventID']}')">ยกเลิก</button>
+    </div>
+  `).join('');
+}
+
+async function cancelBooking(eventId) {
+  if (!confirm('ยืนยันยกเลิกการจองนี้?')) return;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'cancelBooking', eventId })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      await loadData();
+    } else {
+      alert('ยกเลิกไม่สำเร็จ: ' + json.error);
+    }
+  } catch (err) {
+    alert('เกิดข้อผิดพลาด: ' + err.message);
+  }
+}
+
+document.getElementById('bk-submit').addEventListener('click', async () => {
+  const userName = document.getElementById('bk-user').value;
+  const vsel = document.getElementById('bk-vehicle');
+  const vehicleId = vsel.value;
+  const plateNumber = vsel.selectedOptions[0] ? vsel.selectedOptions[0].dataset.plate : '';
+  const psel = document.getElementById('bk-project');
+  const projectId = psel.value;
+  const projectName = psel.selectedOptions[0] ? psel.selectedOptions[0].dataset.name : '';
+  const startTime = document.getElementById('bk-start').value;
+  const endTime = document.getElementById('bk-end').value;
+  const note = document.getElementById('bk-note').value.trim();
+  const msg = document.getElementById('bk-msg');
+  const btn = document.getElementById('bk-submit');
+
+  if (!userName || !vehicleId || !startTime || !endTime) {
+    msg.className = 'msg err';
+    msg.textContent = 'กรุณากรอกข้อมูลให้ครบ: ผู้จอง, รถ, ช่วงเวลา';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'createBooking',
+        userName, vehicleId, plateNumber, projectId, projectName,
+        startTime, endTime, note
+      })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      msg.className = 'msg ok';
+      msg.textContent = 'บันทึกการจองเรียบร้อย';
+      document.getElementById('bk-start').value = '';
+      document.getElementById('bk-end').value = '';
+      document.getElementById('bk-note').value = '';
+      await loadData();
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = json.error;
+    }
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'บันทึกการจอง';
+  }
+});
+
+// ---------- Photo helpers ----------
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function wirePhotoInput(inputId, previewBoxId, previewImgId, ocrBtnId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(previewBoxId);
+  const img = document.getElementById(previewImgId);
+  const ocrBtn = document.getElementById(ocrBtnId);
+  let base64 = null;
+
+  input.addEventListener('change', async () => {
+    if (!input.files[0]) return;
+    base64 = await fileToBase64(input.files[0]);
+    img.src = base64;
+    box.style.display = 'block';
+    ocrBtn.disabled = false;
+  });
+
+  return { getBase64: () => base64 };
+}
+
+const coPhoto = wirePhotoInput('co-photo', 'co-preview', 'co-preview-img', 'co-ocr-btn');
+const ciPhoto = wirePhotoInput('ci-photo', 'ci-preview', 'ci-preview-img', 'ci-ocr-btn');
+
+async function runOcr(base64, mileageInputId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'กำลังอ่านค่า...';
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'ocr', photoBase64: base64 })
+    });
+    const json = await res.json();
+    if (json.ok && json.detectedMileage) {
+      document.getElementById(mileageInputId).value = json.detectedMileage;
+    } else {
+      alert('อ่านค่าไม่สำเร็จ กรุณากรอกเลขไมล์เอง: ' + (json.error || 'ไม่พบตัวเลขในรูป'));
+    }
+  } catch (err) {
+    alert('เกิดข้อผิดพลาด: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'อ่านค่าไมล์จากรูปอัตโนมัติ';
+  }
+}
+
+document.getElementById('co-ocr-btn').addEventListener('click', () => {
+  const b64 = coPhoto.getBase64();
+  if (b64) runOcr(b64, 'co-mileage', document.getElementById('co-ocr-btn'));
+});
+document.getElementById('ci-ocr-btn').addEventListener('click', () => {
+  const b64 = ciPhoto.getBase64();
+  if (b64) runOcr(b64, 'ci-mileage', document.getElementById('ci-ocr-btn'));
+});
+
+// ---------- Checkout submit ----------
+document.getElementById('co-submit').addEventListener('click', async () => {
+  const vehicleId = document.getElementById('co-vehicle').value;
+  const userName = document.getElementById('co-user').value;
+  const projectSel = document.getElementById('co-project');
+  const projectId = projectSel.value;
+  const projectName = projectSel.selectedOptions[0] ? projectSel.selectedOptions[0].dataset.name : '';
+  const purpose = document.getElementById('co-purpose').value;
+  const location = document.querySelector('input[name="co-location"]:checked').value;
+  const mileage = document.getElementById('co-mileage').value;
+  const msg = document.getElementById('co-msg');
+  const btn = document.getElementById('co-submit');
+
+  if (!vehicleId || !userName || !mileage) {
+    msg.className = 'msg err';
+    msg.textContent = 'กรุณากรอกข้อมูลให้ครบ: ผู้ใช้, รถ, เลขไมล์';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'checkout',
+        vehicleId, userName, projectId, projectName, purpose, location,
+        mileage,
+        photoBase64: coPhoto.getBase64()
+      })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      msg.className = 'msg ok';
+      msg.textContent = 'บันทึกลงใช้รถเรียบร้อย';
+      document.getElementById('co-mileage').value = '';
+      document.getElementById('co-preview').style.display = 'none';
+      document.getElementById('co-photo').value = '';
+      await loadData();
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = json.error;
+    }
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'บันทึกลงใช้รถ';
+  }
+});
+
+// ---------- Checkin submit ----------
+document.getElementById('ci-submit').addEventListener('click', async () => {
+  const vehicleId = document.getElementById('ci-vehicle').value;
+  const mileage = document.getElementById('ci-mileage').value;
+  const msg = document.getElementById('ci-msg');
+  const btn = document.getElementById('ci-submit');
+  const resultBox = document.getElementById('ci-result');
+
+  if (!vehicleId || !mileage) {
+    msg.className = 'msg err';
+    msg.textContent = 'กรุณาเลือกรถและกรอกเลขไมล์';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+  resultBox.style.display = 'none';
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'checkin', vehicleId, mileage, photoBase64: ciPhoto.getBase64() })
+    });
+    const json = await res.json();
+    if (json.ok) {
+      msg.className = 'msg ok';
+      msg.textContent = 'บันทึกคืนรถเรียบร้อย';
+      document.getElementById('ci-distance').textContent = json.distance;
+      resultBox.style.display = 'block';
+      document.getElementById('ci-mileage').value = '';
+      document.getElementById('ci-preview').style.display = 'none';
+      document.getElementById('ci-photo').value = '';
+      await loadData();
+    } else {
+      msg.className = 'msg err';
+      msg.textContent = json.error;
+    }
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'บันทึกคืนรถ';
+  }
+});
+
+loadData();
+setInterval(loadData, 30000); // sync สถานะรถทุก 30 วินาที
+</script>
+
+</body>
+</html>
