@@ -212,7 +212,7 @@
 // ============================================================
 // ตั้งค่า: วาง URL ของ Apps Script Web App ที่ deploy แล้วตรงนี้
 // ============================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbzivcuVqX4WWpUSVlwQYAwqeJrwNG3zFcZVRzs7mfeqfbv7NDAZSOkedY8IkwMaiYYk6w/exec';
+const  = 'https://script.google.com/macros/s/AKfycbzivcuVqX4WWpUSVlwQYAwqeJrwNG3zFcZVRzs7mfeqfbv7NDAZSOkedY8IkwMaiYYk6w/exec';
 
 let vehicles = [];
 let projects = [];
@@ -241,7 +241,7 @@ document.querySelector('#co-location-group .radio-option').classList.add('checke
 // ---------- Load data ----------
 async function loadData() {
   try {
-    const res = await fetch(API_URL + '?action=getData');
+    const res = await fetch( + '?action=getData');
     const json = await res.json();
     if (!json.ok) throw new Error(json.error);
     vehicles = json.vehicles;
